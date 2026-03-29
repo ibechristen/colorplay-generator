@@ -1,285 +1,514 @@
-import React, { useMemo, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Slider } from "@/components/ui/slider";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Copy, RotateCcw } from "lucide-react";
-
-const BASES = [
-  { name: "Red", deg: 0 },
-  { name: "Yellow", deg: 60 },
-  { name: "Green", deg: 120 },
-  { name: "Cyan", deg: 180 },
-  { name: "Blue", deg: 240 },
-  { name: "Magenta", deg: 300 },
-];
-
-function clamp(n, min, max) {
-  return Math.min(max, Math.max(min, n));
-}
-
-function wrapHue(deg) {
-  let out = deg % 360;
-  if (out < 0) out += 360;
-  return out;
-}
-
-function hsvToRgb(h, s, v) {
-  const sat = s / 100;
-  const val = v / 100;
-  const c = val * sat;
-  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
-  const m = val - c;
-
-  let r1 = 0, g1 = 0, b1 = 0;
-  if (h >= 0 && h < 60) [r1, g1, b1] = [c, x, 0];
-  else if (h < 120) [r1, g1, b1] = [x, c, 0];
-  else if (h < 180) [r1, g1, b1] = [0, c, x];
-  else if (h < 240) [r1, g1, b1] = [0, x, c];
-  else if (h < 300) [r1, g1, b1] = [x, 0, c];
-  else [r1, g1, b1] = [c, 0, x];
-
-  return {
-    r: Math.round((r1 + m) * 255),
-    g: Math.round((g1 + m) * 255),
-    b: Math.round((b1 + m) * 255),
-  };
-}
-
-function rgbToHex({ r, g, b }) {
-  return `#${[r, g, b].map((n) => n.toString(16).padStart(2, "0")).join("").toUpperCase()}`;
-}
-
-function nearestBase(hue) {
-  return BASES.reduce((best, base) => {
-    const forward = wrapHue(hue - base.deg);
-    const backward = forward > 180 ? forward - 360 : forward;
-    const distance = Math.abs(backward);
-    return distance < best.distance ? { ...base, adjust: Math.round(backward), distance } : best;
-  }, { ...BASES[0], adjust: 0, distance: Infinity });
-}
-
-export default function ColorPlayColorGenerator() {
-  const [base, setBase] = useState("Yellow");
-  const [adjust, setAdjust] = useState(27);
-  const [saturation, setSaturation] = useState(67);
-  const [brightness, setBrightness] = useState(100);
-  const [manualAdjust, setManualAdjust] = useState("27");
-  const [manualSaturation, setManualSaturation] = useState("67");
-  const [manualBrightness, setManualBrightness] = useState("100");
-
-  const baseObj = BASES.find((b) => b.name === base) ?? BASES[1];
-  // Adjust scaling factor to better match real fixture behavior
-  const SCALE = 0.25; // compress hue movement so it doesn't overshoot like HSV
-  const finalHue = useMemo(() => wrapHue(baseObj.deg + (adjust * SCALE)), [baseObj, adjust]);
-  const rgb = useMemo(() => hsvToRgb(finalHue, saturation, brightness), [finalHue, saturation, brightness]);
-  const hex = useMemo(() => rgbToHex(rgb), [rgb]);
-
-  const syncAdjust = (value) => {
-    const parsed = Number(value);
-    if (Number.isNaN(parsed)) return;
-    const safe = clamp(parsed, -255, 255);
-    setAdjust(safe);
-    setManualAdjust(String(safe));
-  };
-
-  const syncSaturation = (value) => {
-    const parsed = Number(value);
-    if (Number.isNaN(parsed)) return;
-    const safe = clamp(parsed, 0, 100);
-    setSaturation(safe);
-    setManualSaturation(String(safe));
-  };
-
-  const syncBrightness = (value) => {
-    const parsed = Number(value);
-    if (Number.isNaN(parsed)) return;
-    const safe = clamp(parsed, 0, 100);
-    setBrightness(safe);
-    setManualBrightness(String(safe));
-  };
-
-  const copyText = async (text) => {
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch {
-      // no-op in preview environments without clipboard access
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ColorPlay Generator</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f5f5f5;
+      color: #222;
     }
-  };
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 32px;
+    }
+    .sub {
+      margin: 0 0 24px;
+      color: #555;
+      line-height: 1.5;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 24px;
+    }
+    .card {
+      background: white;
+      border-radius: 18px;
+      padding: 20px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+      margin-bottom: 24px;
+    }
+    .card h2 {
+      margin-top: 0;
+      font-size: 22px;
+    }
+    .field {
+      margin-bottom: 18px;
+    }
+    label {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .field-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    .badge {
+      background: #f1f1f1;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 13px;
+      color: #444;
+    }
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    input[type="range"] {
+      width: 100%;
+      flex: 1;
+    }
+    select, input[type="number"] {
+      padding: 10px 12px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      font-size: 16px;
+      background: white;
+    }
+    select {
+      width: 100%;
+    }
+    input[type="number"] {
+      width: 96px;
+    }
+    .hint {
+      color: #666;
+      font-size: 13px;
+      line-height: 1.5;
+      margin-top: 8px;
+    }
+    .preview {
+      height: 290px;
+      border-radius: 16px;
+      border: 1px solid #ddd;
+      margin-bottom: 18px;
+    }
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 14px;
+    }
+    .mini {
+      border: 1px solid #e1e1e1;
+      border-radius: 14px;
+      padding: 14px;
+      background: #fff;
+    }
+    .recipe {
+      margin-top: 14px;
+      background: #f2f2f2;
+      border-radius: 12px;
+      padding: 14px;
+      font-weight: 700;
+      line-height: 1.5;
+    }
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+    button {
+      border: none;
+      background: #111;
+      color: white;
+      padding: 11px 15px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 15px;
+    }
+    button.alt {
+      background: #eaeaea;
+      color: #222;
+    }
+    .anchor-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .anchor {
+      border: 1px solid #e2e2e2;
+      border-radius: 12px;
+      padding: 12px;
+      background: #fff;
+    }
+    .muted {
+      color: #888;
+      font-size: 12px;
+      margin-top: 4px;
+    }
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
+      .info-grid, .anchor-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>ColorPlay Color Generator</h1>
+    <p class="sub">
+      Pick a Base Color, adjust Hue, Saturation, and Brightness, and preview the result in real time.
+    </p>
 
-  const recipe = `Base: ${base} | Hue Adjust: ${adjust} | Saturation: ${saturation} | Brightness: ${brightness}`;
+    <div class="grid">
+      <div>
+        <div class="card">
+          <h2>ColorPlay Controls</h2>
 
-  return (
-    <div className="min-h-screen bg-neutral-50 p-6 md:p-10">
-      <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-        <div className="space-y-6">
-          <div>
-            <h1 className="text-3xl font-semibold tracking-tight">ColorPlay Color Generator</h1>
-            <p className="mt-2 max-w-2xl text-sm text-neutral-600">
-              Pick a Base Color, adjust Hue, Saturation, and Brightness, and preview the result.
-              Preview the result in real time.
-            </p>
+          <div class="field">
+            <label for="base">Base Color</label>
+            <select id="base">
+              <option value="Red">Red (0°)</option>
+              <option value="Yellow" selected>Yellow (60°)</option>
+              <option value="Green">Green (120°)</option>
+              <option value="Cyan">Cyan (180°)</option>
+              <option value="Blue">Blue (240°)</option>
+              <option value="Magenta">Magenta (300°)</option>
+            </select>
           </div>
 
-          <Card className="rounded-2xl shadow-sm">
-            <CardHeader>
-              <CardTitle>ColorPlay Controls</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Base Color</label>
-                <Select value={base} onValueChange={setBase}>
-                  <SelectTrigger className="rounded-xl">
-                    <SelectValue placeholder="Select base color" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {BASES.map((b) => (
-                      <SelectItem key={b.name} value={b.name}>{b.name} ({b.deg}°)</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          <div class="field">
+            <div class="field-top">
+              <label for="adjust" style="margin-bottom:0;">Hue Adjust</label>
+              <span class="badge" id="adjustBadge">27</span>
+            </div>
+            <div class="slider-row">
+              <input id="adjust" type="range" min="-255" max="255" value="27" step="1" />
+              <input id="adjustInput" type="number" min="-255" max="255" value="27" step="1" />
+            </div>
+            <div class="hint">Negative usually shifts warmer; positive usually shifts cooler from the chosen base.</div>
+          </div>
 
-              <div className="space-y-3">
-                <div className="flex items-center justify-between text-sm">
-                  <label className="font-medium">Hue Adjust</label>
-                  <Badge variant="secondary">{adjust}</Badge>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex-1">
-                    <Slider value={[adjust]} min={-255} max={255} step={1} onValueChange={(v) => syncAdjust(v[0])} />
-                  </div>
-                  <Input
-                    value={manualAdjust}
-                    onChange={(e) => setManualAdjust(e.target.value)}
-                    onBlur={() => syncAdjust(manualAdjust)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") syncAdjust(manualAdjust);
-                    }}
-                    className="w-24 rounded-xl"
-                    inputMode="numeric"
-                  />
-                </div>
-                <p className="text-xs text-neutral-500">Negative usually shifts warmer; positive usually shifts cooler from the chosen base.</p>
-              </div>
+          <div class="field">
+            <div class="field-top">
+              <label for="saturation" style="margin-bottom:0;">Saturation</label>
+              <span class="badge" id="saturationBadge">67</span>
+            </div>
+            <div class="slider-row">
+              <input id="saturation" type="range" min="0" max="100" value="67" step="1" />
+              <input id="saturationInput" type="number" min="0" max="100" value="67" step="1" />
+            </div>
+          </div>
 
-              <div className="space-y-3">
-                <div className="flex items-center justify-between text-sm">
-                  <label className="font-medium">Saturation</label>
-                  <Badge variant="secondary">{saturation}</Badge>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex-1">
-                    <Slider value={[saturation]} min={0} max={100} step={1} onValueChange={(v) => syncSaturation(v[0])} />
-                  </div>
-                  <Input
-                    value={manualSaturation}
-                    onChange={(e) => setManualSaturation(e.target.value)}
-                    onBlur={() => syncSaturation(manualSaturation)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") syncSaturation(manualSaturation);
-                    }}
-                    className="w-24 rounded-xl"
-                    inputMode="numeric"
-                  />
-                </div>
-              </div>
+          <div class="field">
+            <div class="field-top">
+              <label for="brightness" style="margin-bottom:0;">Brightness</label>
+              <span class="badge" id="brightnessBadge">100</span>
+            </div>
+            <div class="slider-row">
+              <input id="brightness" type="range" min="0" max="100" value="100" step="1" />
+              <input id="brightnessInput" type="number" min="0" max="100" value="100" step="1" />
+            </div>
+          </div>
 
-              <div className="space-y-3">
-                <div className="flex items-center justify-between text-sm">
-                  <label className="font-medium">Brightness</label>
-                  <Badge variant="secondary">{brightness}</Badge>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex-1">
-                    <Slider value={[brightness]} min={0} max={100} step={1} onValueChange={(v) => syncBrightness(v[0])} />
-                  </div>
-                  <Input
-                    value={manualBrightness}
-                    onChange={(e) => setManualBrightness(e.target.value)}
-                    onBlur={() => syncBrightness(manualBrightness)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") syncBrightness(manualBrightness);
-                    }}
-                    className="w-24 rounded-xl"
-                    inputMode="numeric"
-                  />
-                </div>
-              </div>
+          <div class="btn-row">
+            <button class="alt" id="resetBtn" type="button">Reset Example</button>
+            <button id="copyBtn" type="button">Copy Recipe</button>
+          </div>
+        </div>
+      </div>
 
-              <div className="flex flex-wrap gap-3">
-                <Button variant="outline" className="rounded-xl" onClick={() => {
-                  setBase("Yellow");
-                  setAdjust(27);
-                  setSaturation(67);
-                  setBrightness(100);
-                  setManualAdjust("27");
-                  setManualSaturation("67");
-                  setManualBrightness("100");
-                }}>
-                  <RotateCcw className="mr-2 h-4 w-4" /> Reset Example
-                </Button>
-                <Button className="rounded-xl" onClick={() => copyText(recipe)}>
-                  <Copy className="mr-2 h-4 w-4" /> Copy Recipe
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+      <div>
+        <div class="card">
+          <div id="preview" class="preview"></div>
 
-          
+          <div>
+            <div style="font-size:14px;color:#777;">Live preview</div>
+            <div class="muted">Fixture-calibrated approximation based on your real examples.</div>
+            <h2 id="hexDisplay" style="margin:8px 0 0;">#000000</h2>
+          </div>
+
+          <div class="info-grid">
+            <div class="mini">
+              <strong>ColorPlay</strong>
+              <div style="margin-top:10px;">Base: <span id="infoBase"></span></div>
+              <div>Hue Adjust: <span id="infoAdjust"></span></div>
+              <div>Saturation: <span id="infoSat"></span></div>
+              <div>Brightness: <span id="infoBright"></span></div>
+            </div>
+            <div class="mini">
+              <strong>Approximation</strong>
+              <div style="margin-top:10px;">Hue: <span id="infoHue"></span>°</div>
+              <div>Nearest Base: <span id="infoNearest"></span></div>
+              <div>RGB: <span id="infoRgb"></span></div>
+            </div>
+          </div>
+
+          <div class="recipe" id="recipe"></div>
         </div>
 
-        <div className="space-y-6">
-          <Card className="overflow-hidden rounded-2xl shadow-sm">
-            <div className="h-72 w-full" style={{ backgroundColor: hex }} />
-            <CardContent className="space-y-4 p-6">
-              <div>
-                <p className="text-sm text-neutral-500">Live preview</p>
-                <h2 className="text-2xl font-semibold">{hex}</h2>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-2xl border p-4">
-                  <p className="text-xs uppercase tracking-wide text-neutral-500">ColorPlay</p>
-                  <p className="mt-2 text-sm font-medium">Base: {base}</p>
-                  <p className="text-sm">Hue Adjust: {adjust}</p>
-                  <p className="text-sm">Saturation: {saturation}</p>
-                  <p className="text-sm">Brightness: {brightness}</p>
-                </div>
-                <div className="rounded-2xl border p-4">
-                  <p className="text-xs uppercase tracking-wide text-neutral-500">Standard HSV / RGB</p>
-                  <p className="mt-2 text-sm">Hue: {finalHue}°</p>
-                  <p className="text-sm">Saturation: {saturation}%</p>
-                  <p className="text-sm">Brightness: {brightness}%</p>
-                  <p className="text-sm">RGB: {rgb.r}, {rgb.g}, {rgb.b}</p>
-                </div>
-              </div>
-
-              <div className="rounded-2xl bg-neutral-100 p-4 text-sm text-neutral-700">
-                <span className="font-medium">Recipe:</span> {recipe}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-2xl shadow-sm">
-            <CardHeader>
-              <CardTitle>Base Anchor Degrees</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-3">
-                {BASES.map((b) => (
-                  <div key={b.name} className="rounded-2xl border p-3">
-                    <p className="font-medium">{b.name}</p>
-                    <p className="text-neutral-600">{b.deg}°</p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+        <div class="card">
+          <h2>Base Anchor Degrees</h2>
+          <div class="anchor-grid">
+            <div class="anchor"><strong>Red</strong><br>0°</div>
+            <div class="anchor"><strong>Yellow</strong><br>60°</div>
+            <div class="anchor"><strong>Green</strong><br>120°</div>
+            <div class="anchor"><strong>Cyan</strong><br>180°</div>
+            <div class="anchor"><strong>Blue</strong><br>240°</div>
+            <div class="anchor"><strong>Magenta</strong><br>300°</div>
+          </div>
         </div>
       </div>
     </div>
-  );
-}
+  </div>
+
+  <script>
+    const BASES = [
+      { name: "Red", deg: 0 },
+      { name: "Yellow", deg: 60 },
+      { name: "Green", deg: 120 },
+      { name: "Cyan", deg: 180 },
+      { name: "Blue", deg: 240 },
+      { name: "Magenta", deg: 300 },
+    ];
+
+    const CALIBRATION_EXAMPLES = [
+      { base: "Red", adjust: 0, saturation: 100, brightness: 100, hue: 0 },
+      { base: "Green", adjust: 0, saturation: 100, brightness: 100, hue: 120 },
+      { base: "Blue", adjust: 0, saturation: 100, brightness: 100, hue: 240 },
+      { base: "Yellow", adjust: 27, saturation: 67, brightness: 100, hue: 66 },
+      { base: "Green", adjust: 29, saturation: 100, brightness: 64, hue: 161 },
+      { base: "Green", adjust: -85, saturation: 68, brightness: 100, hue: 161 },
+      { base: "Cyan", adjust: 0, saturation: 40, brightness: 100, hue: 210 },
+      { base: "Magenta", adjust: 1438, saturation: 88, brightness: 100, hue: 332 },
+    ];
+
+    function clamp(n, min, max) {
+      return Math.min(max, Math.max(min, n));
+    }
+
+    function wrapHue(deg) {
+      let out = deg % 360;
+      if (out < 0) out += 360;
+      return out;
+    }
+
+    function hsvToRgb(h, s, v) {
+      const sat = s / 100;
+      const val = v / 100;
+      const c = val * sat;
+      const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+      const m = val - c;
+
+      let r1 = 0, g1 = 0, b1 = 0;
+
+      if (h >= 0 && h < 60) {
+        r1 = c; g1 = x;
+      } else if (h < 120) {
+        r1 = x; g1 = c;
+      } else if (h < 180) {
+        g1 = c; b1 = x;
+      } else if (h < 240) {
+        g1 = x; b1 = c;
+      } else if (h < 300) {
+        r1 = x; b1 = c;
+      } else {
+        r1 = c; b1 = x;
+      }
+
+      return {
+        r: Math.round((r1 + m) * 255),
+        g: Math.round((g1 + m) * 255),
+        b: Math.round((b1 + m) * 255),
+      };
+    }
+
+    function rgbToHex(rgb) {
+      return "#" + [rgb.r, rgb.g, rgb.b]
+        .map((n) => n.toString(16).padStart(2, "0"))
+        .join("")
+        .toUpperCase();
+    }
+
+    function approxFixtureHue(baseName, adjust, saturation, brightness) {
+      const exact = CALIBRATION_EXAMPLES.find(
+        (item) =>
+          item.base === baseName &&
+          item.adjust === adjust &&
+          item.saturation === saturation &&
+          item.brightness === brightness
+      );
+
+      if (exact) return exact.hue;
+
+      const base = BASES.find((b) => b.name === baseName) || BASES[0];
+
+      if (baseName === "Yellow") {
+        return wrapHue(base.deg + adjust * 0.22);
+      }
+
+      if (baseName === "Green") {
+        const shifted = base.deg + 0.0166 * adjust * adjust + 0.931 * adjust;
+        return wrapHue(shifted);
+      }
+
+      if (baseName === "Cyan") {
+        return wrapHue(base.deg + (100 - saturation) * 0.5);
+      }
+
+      if (baseName === "Magenta") {
+        if (Math.abs(adjust) > 255) {
+          return wrapHue(base.deg + (adjust / 1438) * 32);
+        }
+        return wrapHue(base.deg + adjust * 0.2);
+      }
+
+      return wrapHue(base.deg + adjust * 0.1);
+    }
+
+    function nearestBase(hue) {
+      return BASES.reduce((best, base) => {
+        const forward = wrapHue(hue - base.deg);
+        const backward = forward > 180 ? forward - 360 : forward;
+        const distance = Math.abs(backward);
+        return distance < best.distance ? { ...base, adjust: Math.round(backward), distance } : best;
+      }, { ...BASES[0], adjust: 0, distance: Infinity });
+    }
+
+    const els = {
+      base: document.getElementById("base"),
+      adjust: document.getElementById("adjust"),
+      adjustInput: document.getElementById("adjustInput"),
+      adjustBadge: document.getElementById("adjustBadge"),
+      saturation: document.getElementById("saturation"),
+      saturationInput: document.getElementById("saturationInput"),
+      saturationBadge: document.getElementById("saturationBadge"),
+      brightness: document.getElementById("brightness"),
+      brightnessInput: document.getElementById("brightnessInput"),
+      brightnessBadge: document.getElementById("brightnessBadge"),
+      preview: document.getElementById("preview"),
+      hexDisplay: document.getElementById("hexDisplay"),
+      infoBase: document.getElementById("infoBase"),
+      infoAdjust: document.getElementById("infoAdjust"),
+      infoSat: document.getElementById("infoSat"),
+      infoBright: document.getElementById("infoBright"),
+      infoHue: document.getElementById("infoHue"),
+      infoNearest: document.getElementById("infoNearest"),
+      infoRgb: document.getElementById("infoRgb"),
+      recipe: document.getElementById("recipe"),
+      resetBtn: document.getElementById("resetBtn"),
+      copyBtn: document.getElementById("copyBtn"),
+    };
+
+    function syncPair(slider, input, min, max) {
+      const safe = clamp(Number(slider.value), min, max);
+      slider.value = safe;
+      input.value = safe;
+      return safe;
+    }
+
+    function syncFromInput(input, slider, min, max) {
+      const parsed = Number(input.value);
+      if (Number.isNaN(parsed)) return clamp(Number(slider.value), min, max);
+      const safe = clamp(parsed, min, max);
+      input.value = safe;
+      slider.value = safe;
+      return safe;
+    }
+
+    function render() {
+      const base = els.base.value;
+      const adjust = syncPair(els.adjust, els.adjustInput, -255, 255);
+      const saturation = syncPair(els.saturation, els.saturationInput, 0, 100);
+      const brightness = syncPair(els.brightness, els.brightnessInput, 0, 100);
+
+      els.adjustBadge.textContent = adjust;
+      els.saturationBadge.textContent = saturation;
+      els.brightnessBadge.textContent = brightness;
+
+      const finalHue = approxFixtureHue(base, adjust, saturation, brightness);
+      const rgb = hsvToRgb(finalHue, saturation, brightness);
+      const hex = rgbToHex(rgb);
+      const nearest = nearestBase(finalHue);
+      const recipe = `Base: ${base} | Hue Adjust: ${adjust} | Saturation: ${saturation} | Brightness: ${brightness}`;
+
+      els.preview.style.backgroundColor = hex;
+      els.hexDisplay.textContent = hex;
+      els.infoBase.textContent = base;
+      els.infoAdjust.textContent = adjust;
+      els.infoSat.textContent = saturation;
+      els.infoBright.textContent = brightness;
+      els.infoHue.textContent = finalHue;
+      els.infoNearest.textContent = nearest.name;
+      els.infoRgb.textContent = `${rgb.r}, ${rgb.g}, ${rgb.b}`;
+      els.recipe.textContent = recipe;
+    }
+
+    els.base.addEventListener("change", render);
+
+    els.adjust.addEventListener("input", () => {
+      els.adjustInput.value = els.adjust.value;
+      render();
+    });
+    els.adjustInput.addEventListener("input", () => {
+      syncFromInput(els.adjustInput, els.adjust, -255, 255);
+      render();
+    });
+    els.adjustInput.addEventListener("blur", () => {
+      syncFromInput(els.adjustInput, els.adjust, -255, 255);
+      render();
+    });
+
+    els.saturation.addEventListener("input", () => {
+      els.saturationInput.value = els.saturation.value;
+      render();
+    });
+    els.saturationInput.addEventListener("input", () => {
+      syncFromInput(els.saturationInput, els.saturation, 0, 100);
+      render();
+    });
+    els.saturationInput.addEventListener("blur", () => {
+      syncFromInput(els.saturationInput, els.saturation, 0, 100);
+      render();
+    });
+
+    els.brightness.addEventListener("input", () => {
+      els.brightnessInput.value = els.brightness.value;
+      render();
+    });
+    els.brightnessInput.addEventListener("input", () => {
+      syncFromInput(els.brightnessInput, els.brightness, 0, 100);
+      render();
+    });
+    els.brightnessInput.addEventListener("blur", () => {
+      syncFromInput(els.brightnessInput, els.brightness, 0, 100);
+      render();
+    });
+
+    els.resetBtn.addEventListener("click", () => {
+      els.base.value = "Yellow";
+      els.adjust.value = 27;
+      els.adjustInput.value = 27;
+      els.saturation.value = 67;
+      els.saturationInput.value = 67;
+      els.brightness.value = 100;
+      els.brightnessInput.value = 100;
+      render();
+    });
+
+    els.copyBtn.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(els.recipe.textContent);
+      } catch {}
+    });
+
+    render();
+  </script>
+</body>
+</html>
