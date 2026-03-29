@@ -163,7 +163,8 @@
   <div class="wrap">
     <h1>ColorPlay Color Generator</h1>
     <p class="sub">
-      Pick a Base Color, adjust Hue, Saturation, and Brightness, and preview the result in real time.
+      Base Color chooses the anchor hue. Hue Adjust shifts up to 60° backward or forward from that anchor.
+      Saturation controls intensity. Brightness controls output.
     </p>
 
     <div class="grid">
@@ -175,6 +176,7 @@
             <label for="base">Base Color</label>
             <select id="base">
               <option value="Red">Red (0°)</option>
+              <option value="Orange">Orange (30°)</option>
               <option value="Yellow" selected>Yellow (60°)</option>
               <option value="Green">Green (120°)</option>
               <option value="Cyan">Cyan (180°)</option>
@@ -192,7 +194,7 @@
               <input id="adjust" type="range" min="-255" max="255" value="27" step="1" />
               <input id="adjustInput" type="number" min="-255" max="255" value="27" step="1" />
             </div>
-            <div class="hint">Negative usually shifts warmer; positive usually shifts cooler from the chosen base.</div>
+            <div class="hint">-255 = previous anchor, 0 = base color, 255 = next anchor.</div>
           </div>
 
           <div class="field">
@@ -230,7 +232,7 @@
 
           <div>
             <div style="font-size:14px;color:#777;">Live preview</div>
-            <div class="muted">Fixture-calibrated approximation based on your real examples.</div>
+            <div class="muted">Uses your final circular hue-shift model.</div>
             <h2 id="hexDisplay" style="margin:8px 0 0;">#000000</h2>
           </div>
 
@@ -243,10 +245,10 @@
               <div>Brightness: <span id="infoBright"></span></div>
             </div>
             <div class="mini">
-              <strong>Approximation</strong>
-              <div style="margin-top:10px;">Hue: <span id="infoHue"></span>°</div>
-              <div>Nearest Base: <span id="infoNearest"></span></div>
+              <strong>Calculated Color</strong>
+              <div style="margin-top:10px;">Final Hue: <span id="infoHue"></span>°</div>
               <div>RGB: <span id="infoRgb"></span></div>
+              <div>HEX: <span id="infoHex"></span></div>
             </div>
           </div>
 
@@ -257,6 +259,7 @@
           <h2>Base Anchor Degrees</h2>
           <div class="anchor-grid">
             <div class="anchor"><strong>Red</strong><br>0°</div>
+            <div class="anchor"><strong>Orange</strong><br>30°</div>
             <div class="anchor"><strong>Yellow</strong><br>60°</div>
             <div class="anchor"><strong>Green</strong><br>120°</div>
             <div class="anchor"><strong>Cyan</strong><br>180°</div>
@@ -271,22 +274,12 @@
   <script>
     const BASES = [
       { name: "Red", deg: 0 },
+      { name: "Orange", deg: 30 },
       { name: "Yellow", deg: 60 },
       { name: "Green", deg: 120 },
       { name: "Cyan", deg: 180 },
       { name: "Blue", deg: 240 },
       { name: "Magenta", deg: 300 },
-    ];
-
-    const CALIBRATION_EXAMPLES = [
-      { base: "Red", adjust: 0, saturation: 100, brightness: 100, hue: 0 },
-      { base: "Green", adjust: 0, saturation: 100, brightness: 100, hue: 120 },
-      { base: "Blue", adjust: 0, saturation: 100, brightness: 100, hue: 240 },
-      { base: "Yellow", adjust: 27, saturation: 67, brightness: 100, hue: 66 },
-      { base: "Green", adjust: 29, saturation: 100, brightness: 64, hue: 161 },
-      { base: "Green", adjust: -85, saturation: 68, brightness: 100, hue: 161 },
-      { base: "Cyan", adjust: 0, saturation: 40, brightness: 100, hue: 210 },
-      { base: "Magenta", adjust: 1438, saturation: 88, brightness: 100, hue: 332 },
     ];
 
     function clamp(n, min, max) {
@@ -336,49 +329,15 @@
         .toUpperCase();
     }
 
-    function approxFixtureHue(baseName, adjust, saturation, brightness) {
-      const exact = CALIBRATION_EXAMPLES.find(
-        (item) =>
-          item.base === baseName &&
-          item.adjust === adjust &&
-          item.saturation === saturation &&
-          item.brightness === brightness
-      );
-
-      if (exact) return exact.hue;
-
-      const base = BASES.find((b) => b.name === baseName) || BASES[0];
-
-      if (baseName === "Yellow") {
-        return wrapHue(base.deg + adjust * 0.22);
-      }
-
-      if (baseName === "Green") {
-        const shifted = base.deg + 0.0166 * adjust * adjust + 0.931 * adjust;
-        return wrapHue(shifted);
-      }
-
-      if (baseName === "Cyan") {
-        return wrapHue(base.deg + adjust * 0.1 + (100 - saturation) * 0.3);
-      }
-
-      if (baseName === "Magenta") {
-        if (Math.abs(adjust) > 255) {
-          return wrapHue(base.deg + (adjust / 1438) * 32);
-        }
-        return wrapHue(base.deg + adjust * 0.2);
-      }
-
-      return wrapHue(base.deg + adjust * 0.1);
+    function getBaseDegrees(baseName) {
+      const found = BASES.find((b) => b.name === baseName);
+      return found ? found.deg : 60;
     }
 
-    function nearestBase(hue) {
-      return BASES.reduce((best, base) => {
-        const forward = wrapHue(hue - base.deg);
-        const backward = forward > 180 ? forward - 360 : forward;
-        const distance = Math.abs(backward);
-        return distance < best.distance ? { ...base, adjust: Math.round(backward), distance } : best;
-      }, { ...BASES[0], adjust: 0, distance: Infinity });
+    function getFinalHue(baseName, adjust) {
+      const baseDeg = getBaseDegrees(baseName);
+      const shift = (adjust / 255) * 60;
+      return wrapHue(baseDeg + shift);
     }
 
     const els = {
@@ -399,8 +358,8 @@
       infoSat: document.getElementById("infoSat"),
       infoBright: document.getElementById("infoBright"),
       infoHue: document.getElementById("infoHue"),
-      infoNearest: document.getElementById("infoNearest"),
       infoRgb: document.getElementById("infoRgb"),
+      infoHex: document.getElementById("infoHex"),
       recipe: document.getElementById("recipe"),
       resetBtn: document.getElementById("resetBtn"),
       copyBtn: document.getElementById("copyBtn"),
@@ -432,10 +391,9 @@
       els.saturationBadge.textContent = saturation;
       els.brightnessBadge.textContent = brightness;
 
-      const finalHue = approxFixtureHue(base, adjust, saturation, brightness);
+      const finalHue = getFinalHue(base, adjust);
       const rgb = hsvToRgb(finalHue, saturation, brightness);
       const hex = rgbToHex(rgb);
-      const nearest = nearestBase(finalHue);
       const recipe = `Base: ${base} | Hue Adjust: ${adjust} | Saturation: ${saturation} | Brightness: ${brightness}`;
 
       els.preview.style.backgroundColor = hex;
@@ -444,9 +402,9 @@
       els.infoAdjust.textContent = adjust;
       els.infoSat.textContent = saturation;
       els.infoBright.textContent = brightness;
-      els.infoHue.textContent = finalHue;
-      els.infoNearest.textContent = nearest.name;
+      els.infoHue.textContent = finalHue.toFixed(1);
       els.infoRgb.textContent = `${rgb.r}, ${rgb.g}, ${rgb.b}`;
+      els.infoHex.textContent = hex;
       els.recipe.textContent = recipe;
     }
 
