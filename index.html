@@ -1,585 +1,137 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ColorPlay Generator</title>
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: Arial, Helvetica, sans-serif;
-      background: #f5f5f5;
-      color: #222;
-    }
-    .wrap {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 24px;
-    }
-    h1 {
-      margin: 0 0 8px;
-      font-size: 32px;
-    }
-    .sub {
-      margin: 0 0 24px;
-      color: #555;
-      line-height: 1.5;
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: 1.1fr 0.9fr;
-      gap: 24px;
-    }
-    .card {
-      background: white;
-      border-radius: 18px;
-      padding: 20px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.06);
-      margin-bottom: 24px;
-    }
-    .card h2 {
-      margin-top: 0;
-      font-size: 22px;
-    }
-    .field {
-      margin-bottom: 18px;
-    }
-    label {
-      display: block;
-      font-weight: 700;
-      margin-bottom: 8px;
-    }
-    input[type="range"] {
-      width: 100%;
-    }
-    select, input[type="number"], input[type="text"] {
-      width: 100%;
-      padding: 10px 12px;
-      border: 1px solid #ccc;
-      border-radius: 10px;
-      font-size: 16px;
-    }
-    .value {
-      font-size: 14px;
-      color: #666;
-      margin-top: 6px;
-    }
-    .preview {
-      height: 290px;
-      border-radius: 16px;
-      border: 1px solid #ddd;
-      margin-bottom: 18px;
-    }
-    .info-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
-      margin-top: 14px;
-    }
-    .mini {
-      border: 1px solid #e1e1e1;
-      border-radius: 14px;
-      padding: 14px;
-      background: #fff;
-    }
-    .recipe {
-      margin-top: 14px;
-      background: #f2f2f2;
-      border-radius: 12px;
-      padding: 14px;
-      font-weight: 700;
-      line-height: 1.5;
-    }
-    .btn-row {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-top: 16px;
-    }
-    button {
-      border: none;
-      background: #111;
-      color: white;
-      padding: 11px 15px;
-      border-radius: 10px;
-      cursor: pointer;
-      font-size: 15px;
-    }
-    button.alt {
-      background: #eaeaea;
-      color: #222;
-    }
-    .anchor-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-    }
-    .anchor {
-      border: 1px solid #e2e2e2;
-      border-radius: 12px;
-      padding: 12px;
-      background: #fff;
-    }
-    .hint {
-      color: #666;
-      font-size: 14px;
-      line-height: 1.5;
-      margin-top: 8px;
-    }
-    @media (max-width: 900px) {
-      .grid { grid-template-columns: 1fr; }
-      .info-grid, .anchor-grid { grid-template-columns: 1fr; }
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ColorPlay Generator</title>
+<style>
+body { font-family: Arial; margin:0; background:#f5f5f5; }
+.wrap { max-width:900px; margin:auto; padding:20px; }
+.card { background:white; padding:18px; border-radius:12px; margin-bottom:16px; }
+.row { margin-bottom:14px; }
+label { font-weight:bold; display:block; margin-bottom:6px; }
+.flex { display:flex; gap:10px; align-items:center; }
+input[type=range] { flex:1; }
+input[type=number] { width:80px; padding:6px; }
+select { padding:8px; width:100%; }
+.preview { height:220px; border-radius:10px; margin-top:12px; }
+.recipe { margin-top:10px; font-weight:bold; }
+</style>
 </head>
 <body>
-  <div class="wrap">
-    <h1>ColorPlay Generator</h1>
-    <p class="sub">
-      Standalone version. Pick a Base Color, adjust Hue, Saturation, and Brightness, and use the live preview.
-      This uses standard anchor degrees under the hood so you can compare ColorPlay values to HSV-style hue.
-    </p>
+<div class="wrap">
+<h2>ColorPlay Generator</h2>
 
-    <div class="grid">
-      <div id="imageSamplerPanel" class="card" style="display:none; grid-column: 1 / -1;">
-        <h2>Image Color Sampler</h2>
-        <p class="hint">Optional tool. Upload an image only when you need to sample a brand or logo color. Click on the image to pull a color into the generator.</p>
-        <div class="btn-row" style="margin-bottom:14px;">
-          <input id="imageUpload" type="file" accept="image/*" style="display:none;" />
-          <button id="chooseImageBtn" class="alt" type="button">Upload Image</button>
-          <button id="hideSamplerBtn" class="alt" type="button">Hide Sampler</button>
-        </div>
-        <div id="samplerEmpty" class="hint">No image uploaded yet.</div>
-        <canvas id="imageCanvas" style="display:none; max-width:100%; border:1px solid #ddd; border-radius:12px; cursor:crosshair;"></canvas>
-        <div class="info-grid" id="sampleInfo" style="display:none; margin-top:14px;">
-          <div class="mini">
-            <strong>Sampled Color</strong>
-            <div id="sampleSwatch" style="height:56px; border-radius:10px; border:1px solid #ddd; margin:10px 0;"></div>
-            <div>HEX: <span id="sampleHex">-</span></div>
-            <div>RGB: <span id="sampleRgb">-</span></div>
-            <div>HSV: <span id="sampleHsv">-</span></div>
-          </div>
-          <div class="mini">
-            <strong>Suggested ColorPlay Mapping</strong>
-            <div>Base: <span id="sampleBase">-</span></div>
-            <div>Hue Adjust: <span id="sampleAdjust">-</span></div>
-            <div>Saturation: <span id="sampleSat">-</span></div>
-            <div>Brightness: <span id="sampleBright">-</span></div>
-            <div class="btn-row" style="margin-top:12px;">
-              <button id="applySampleBtn" type="button">Use This Color</button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div>
-        <div class="card">
-          <h2>ColorPlay Controls</h2>
-          <div class="btn-row" style="margin-top:0; margin-bottom:16px;">
-            <button id="showSamplerBtn" class="alt" type="button">Upload Image / Sample Color</button>
-          </div>
+<div class="card">
 
-          <div class="field">
-            <label for="base">Base Color</label>
-            <select id="base">
-              <option value="Red">Red (0°)</option>
-              <option value="Yellow" selected>Yellow (60°)</option>
-              <option value="Green">Green (120°)</option>
-              <option value="Cyan">Cyan (180°)</option>
-              <option value="Blue">Blue (240°)</option>
-              <option value="Magenta">Magenta (300°)</option>
-            </select>
-          </div>
+<div class="row">
+<label>Base Color</label>
+<select id="base">
+<option>Red</option>
+<option selected>Yellow</option>
+<option>Green</option>
+<option>Cyan</option>
+<option>Blue</option>
+<option>Magenta</option>
+</select>
+</div>
 
-          <div class="field">
-            <label for="adjust">Hue Adjust</label>
-            <input id="adjust" type="range" min="-255" max="255" value="27" step="1" />
-            <div class="btn-row" style="margin-top:10px;">
-              <div style="width:220px; max-width:100%;">
-                <label for="adjustInput" style="font-weight:400; margin-bottom:6px;">Type Hue Adjust</label>
-                <input id="adjustInput" type="number" min="-255" max="255" value="27" step="1" />
-              </div>
-            </div>
-            <div class="value">Current: <span id="adjustValue">27</span></div>
-            <div class="hint">Use either the slider or the number box. Negative usually shifts warmer. Positive usually shifts cooler.</div>
-          </div>
+<div class="row">
+<label>Hue Adjust</label>
+<div class="flex">
+<input id="adjust" type="range" min="-255" max="255" value="27">
+<input id="adjustInput" type="number" min="-255" max="255" value="27">
+</div>
+</div>
 
-          <div class="field">
-            <label for="saturation">Saturation</label>
-            <input id="saturation" type="range" min="0" max="100" value="67" step="1" />
-            <div class="btn-row" style="margin-top:10px;">
-              <div style="width:220px; max-width:100%;">
-                <label for="saturationInput" style="font-weight:400; margin-bottom:6px;">Type Saturation</label>
-                <input id="saturationInput" type="number" min="0" max="100" value="67" step="1" />
-              </div>
-            </div>
-            <div class="value">Current: <span id="saturationValue">67</span></div>
-          </div>
-          </div>
+<div class="row">
+<label>Saturation</label>
+<div class="flex">
+<input id="saturation" type="range" min="0" max="100" value="67">
+<input id="saturationInput" type="number" min="0" max="100" value="67">
+</div>
+</div>
 
-          <div class="field">
-            <label for="brightness">Brightness</label>
-            <input id="brightness" type="range" min="0" max="100" value="100" step="1" />
-            <div class="btn-row" style="margin-top:10px;">
-              <div style="width:220px; max-width:100%;">
-                <label for="brightnessInput" style="font-weight:400; margin-bottom:6px;">Type Brightness</label>
-                <input id="brightnessInput" type="number" min="0" max="100" value="100" step="1" />
-              </div>
-            </div>
-            <div class="value">Current: <span id="brightnessValue">100</span></div>
-          </div>
-          </div>
+<div class="row">
+<label>Brightness</label>
+<div class="flex">
+<input id="brightness" type="range" min="0" max="100" value="100">
+<input id="brightnessInput" type="number" min="0" max="100" value="100">
+</div>
+</div>
 
-          <div class="btn-row">
-            <button class="alt" id="resetBtn">Reset Example</button>
-            <button id="copyBtn">Copy Recipe</button>
-          </div>
-        </div>
-      </div>
+<div id="preview" class="preview"></div>
+<div id="recipe" class="recipe"></div>
 
-      <div>
-        <div class="card">
-          <div id="preview" class="preview"></div>
+</div>
+</div>
 
-          <div class="info-grid">
-            <div class="mini">
-              <strong>ColorPlay</strong>
-              <div>Base: <span id="infoBase"></span></div>
-              <div>Hue Adjust: <span id="infoAdjust"></span></div>
-              <div>Saturation: <span id="infoSat"></span></div>
-              <div>Brightness: <span id="infoBright"></span></div>
-            </div>
-            <div class="mini">
-              <strong>Standard HSV / RGB</strong>
-              <div>Hue: <span id="infoHue"></span>°</div>
-              <div>Saturation: <span id="infoSat2"></span>%</div>
-              <div>Brightness: <span id="infoBright2"></span>%</div>
-              <div>RGB: <span id="infoRgb"></span></div>
-              <div>HEX: <span id="infoHex"></span></div>
-            </div>
-          </div>
+<script>
+const BASES = { Red:0, Yellow:60, Green:120, Cyan:180, Blue:240, Magenta:300 };
 
-          <div class="recipe" id="recipe"></div>
-        </div>
+const baseEl = document.getElementById('base');
+const adjustEl = document.getElementById('adjust');
+const adjustInput = document.getElementById('adjustInput');
+const satEl = document.getElementById('saturation');
+const satInput = document.getElementById('saturationInput');
+const brightEl = document.getElementById('brightness');
+const brightInput = document.getElementById('brightnessInput');
+const preview = document.getElementById('preview');
+const recipe = document.getElementById('recipe');
 
-        <div class="card">
-          <h2>Base Anchor Degrees</h2>
-          <div class="anchor-grid">
-            <div class="anchor"><strong>Red</strong><br>0°</div>
-            <div class="anchor"><strong>Yellow</strong><br>60°</div>
-            <div class="anchor"><strong>Green</strong><br>120°</div>
-            <div class="anchor"><strong>Cyan</strong><br>180°</div>
-            <div class="anchor"><strong>Blue</strong><br>240°</div>
-            <div class="anchor"><strong>Magenta</strong><br>300°</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+function clamp(v,min,max){ return Math.min(max,Math.max(min,Number(v)||0)); }
+function wrap(h){ h%=360; return h<0?h+360:h; }
 
-  <script>
-    const BASES = {
-      Red: 0,
-      Yellow: 60,
-      Green: 120,
-      Cyan: 180,
-      Blue: 240,
-      Magenta: 300
-    };
+function hsvToRgb(h,s,v){
+s/=100; v/=100;
+let c=v*s;
+let x=c*(1-Math.abs((h/60)%2-1));
+let m=v-c;
+let r=0,g=0,b=0;
+if(h<60){r=c;g=x}
+else if(h<120){r=x;g=c}
+else if(h<180){g=c;b=x}
+else if(h<240){g=x;b=c}
+else if(h<300){r=x;b=c}
+else{r=c;b=x}
+return [
+Math.round((r+m)*255),
+Math.round((g+m)*255),
+Math.round((b+m)*255)
+];
+}
 
-    const baseEl = document.getElementById('base');
-    const adjustEl = document.getElementById('adjust');
-    const saturationEl = document.getElementById('saturation');
-    const brightnessEl = document.getElementById('brightness');
-    const adjustInputEl = document.getElementById('adjustInput');
-    const saturationInputEl = document.getElementById('saturationInput');
-    const brightnessInputEl = document.getElementById('brightnessInput');
+function sync(){
+adjustEl.value = adjustInput.value = clamp(adjustEl.value,-255,255);
+satEl.value = satInput.value = clamp(satEl.value,0,100);
+brightEl.value = brightInput.value = clamp(brightEl.value,0,100);
+}
 
-    const adjustValueEl = document.getElementById('adjustValue');
-    const saturationValueEl = document.getElementById('saturationValue');
-    const brightnessValueEl = document.getElementById('brightnessValue');
+function render(){
+sync();
+let base = baseEl.value;
+let h = wrap(BASES[base] + Number(adjustEl.value));
+let s = Number(satEl.value);
+let v = Number(brightEl.value);
+let [r,g,b] = hsvToRgb(h,s,v);
+let hex = '#' + [r,g,b].map(x=>x.toString(16).padStart(2,'0')).join('').toUpperCase();
+preview.style.background = hex;
+recipe.textContent = `Base: ${base} | Hue: ${adjustEl.value} | Sat: ${s} | Bright: ${v}`;
+}
 
-    const previewEl = document.getElementById('preview');
-    const infoBaseEl = document.getElementById('infoBase');
-    const infoAdjustEl = document.getElementById('infoAdjust');
-    const infoSatEl = document.getElementById('infoSat');
-    const infoBrightEl = document.getElementById('infoBright');
-    const infoHueEl = document.getElementById('infoHue');
-    const infoSat2El = document.getElementById('infoSat2');
-    const infoBright2El = document.getElementById('infoBright2');
-    const infoRgbEl = document.getElementById('infoRgb');
-    const infoHexEl = document.getElementById('infoHex');
-    const recipeEl = document.getElementById('recipe');
-    const imageSamplerPanel = document.getElementById('imageSamplerPanel');
-    const showSamplerBtn = document.getElementById('showSamplerBtn');
-    const hideSamplerBtn = document.getElementById('hideSamplerBtn');
-    const chooseImageBtn = document.getElementById('chooseImageBtn');
-    const imageUploadEl = document.getElementById('imageUpload');
-    const imageCanvas = document.getElementById('imageCanvas');
-    const samplerEmpty = document.getElementById('samplerEmpty');
-    const sampleInfo = document.getElementById('sampleInfo');
-    const sampleSwatch = document.getElementById('sampleSwatch');
-    const sampleHex = document.getElementById('sampleHex');
-    const sampleRgb = document.getElementById('sampleRgb');
-    const sampleHsv = document.getElementById('sampleHsv');
-    const sampleBase = document.getElementById('sampleBase');
-    const sampleAdjust = document.getElementById('sampleAdjust');
-    const sampleSat = document.getElementById('sampleSat');
-    const sampleBright = document.getElementById('sampleBright');
-    const applySampleBtn = document.getElementById('applySampleBtn');
+[adjustEl,adjustInput,satEl,satInput,brightEl,brightInput,baseEl].forEach(el=>{
+el.addEventListener('input',()=>{
+if(el===adjustInput) adjustEl.value=el.value;
+if(el===satInput) satEl.value=el.value;
+if(el===brightInput) brightEl.value=el.value;
+if(el===adjustEl) adjustInput.value=el.value;
+if(el===satEl) satInput.value=el.value;
+if(el===brightEl) brightInput.value=el.value;
+render();
+});
+});
 
-    let latestSample = null;
-
-    function wrapHue(deg) {
-      let out = deg % 360;
-      if (out < 0) out += 360;
-      return out;
-    }
-
-    function hsvToRgb(h, s, v) {
-      s = s / 100;
-      v = v / 100;
-      const c = v * s;
-      const x = c * (1 - Math.abs((h / 60) % 2 - 1));
-      const m = v - c;
-      let r = 0, g = 0, b = 0;
-
-      if (h >= 0 && h < 60) { r = c; g = x; b = 0; }
-      else if (h < 120) { r = x; g = c; b = 0; }
-      else if (h < 180) { r = 0; g = c; b = x; }
-      else if (h < 240) { r = 0; g = x; b = c; }
-      else if (h < 300) { r = x; g = 0; b = c; }
-      else { r = c; g = 0; b = x; }
-
-      return {
-        r: Math.round((r + m) * 255),
-        g: Math.round((g + m) * 255),
-        b: Math.round((b + m) * 255)
-      };
-    }
-
-    function rgbToHex(r, g, b) {
-      return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('').toUpperCase();
-    }
-
-    function rgbToHsv(r, g, b) {
-      r /= 255; g /= 255; b /= 255;
-      const max = Math.max(r, g, b), min = Math.min(r, g, b);
-      const d = max - min;
-      let h = 0;
-      const s = max === 0 ? 0 : d / max;
-      const v = max;
-
-      if (d !== 0) {
-        switch (max) {
-          case r: h = ((g - b) / d) % 6; break;
-          case g: h = (b - r) / d + 2; break;
-          case b: h = (r - g) / d + 4; break;
-        }
-        h *= 60;
-        if (h < 0) h += 360;
-      }
-
-      return {
-        h: Math.round(h),
-        s: Math.round(s * 100),
-        v: Math.round(v * 100)
-      };
-    }
-
-    function clamp(value, min, max) {
-      return Math.min(max, Math.max(min, value));
-    }
-
-    function syncAdjustFromValue(value) {
-      const safeValue = clamp(Number(value) || 0, -255, 255);
-      adjustEl.value = safeValue;
-      adjustInputEl.value = safeValue;
-      return safeValue;
-    }
-
-    function syncSaturation(value) {
-      const safeValue = clamp(Number(value) || 0, 0, 100);
-      saturationEl.value = safeValue;
-      saturationInputEl.value = safeValue;
-      return safeValue;
-    }
-
-    function syncBrightness(value) {
-      const safeValue = clamp(Number(value) || 0, 0, 100);
-      brightnessEl.value = safeValue;
-      brightnessInputEl.value = safeValue;
-      return safeValue;
-    }
-
-    function nearestBase(hue) {
-      let best = null;
-      for (const [name, deg] of Object.entries(BASES)) {
-        const forward = wrapHue(hue - deg);
-        const signed = forward > 180 ? forward - 360 : forward;
-        const distance = Math.abs(signed);
-        if (!best || distance < best.distance) {
-          best = { name, deg, adjust: Math.round(signed), distance };
-        }
-      }
-      return best;
-    }
-
-    function render() {
-      const base = baseEl.value;
-      const adjust = syncAdjustFromValue(adjustEl.value);
-      const saturation = syncSaturation(saturationEl.value);
-      const brightness = syncBrightness(brightnessEl.value);
-      const baseDeg = BASES[base];
-      const hue = wrapHue(baseDeg + adjust);
-      const rgb = hsvToRgb(hue, saturation, brightness);
-      const hex = rgbToHex(rgb.r, rgb.g, rgb.b);
-      const recipe = `Base: ${base} | Hue Adjust: ${adjust} | Saturation: ${saturation} | Brightness: ${brightness}`;
-
-      adjustValueEl.textContent = adjust;
-      adjustInputEl.value = adjust;
-      saturationInputEl.value = saturation;
-      brightnessInputEl.value = brightness;
-      saturationValueEl.textContent = saturation;
-      brightnessValueEl.textContent = brightness;
-
-      previewEl.style.background = hex;
-      infoBaseEl.textContent = base;
-      infoAdjustEl.textContent = adjust;
-      infoSatEl.textContent = saturation;
-      infoBrightEl.textContent = brightness;
-      infoHueEl.textContent = hue;
-      infoSat2El.textContent = saturation;
-      infoBright2El.textContent = brightness;
-      infoRgbEl.textContent = `${rgb.r}, ${rgb.g}, ${rgb.b}`;
-      infoHexEl.textContent = hex;
-      recipeEl.textContent = recipe;
-
-      
-    }
-
-    document.getElementById('resetBtn').addEventListener('click', () => {
-      baseEl.value = 'Yellow';
-      adjustEl.value = 27;
-      saturationEl.value = 67;
-      brightnessEl.value = 100;
-      adjustInputEl.value = 27;
-      render();
-    });
-
-    document.getElementById('copyBtn').addEventListener('click', async () => {
-      try {
-        await navigator.clipboard.writeText(recipeEl.textContent);
-        alert('Recipe copied.');
-      } catch (e) {
-        alert('Clipboard copy was blocked in this browser.');
-      }
-    });
-
-    showSamplerBtn.addEventListener('click', () => {
-      imageSamplerPanel.style.display = 'block';
-      imageSamplerPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-
-    hideSamplerBtn.addEventListener('click', () => {
-      imageSamplerPanel.style.display = 'none';
-    });
-
-    chooseImageBtn.addEventListener('click', () => imageUploadEl.click());
-
-    imageUploadEl.addEventListener('change', (event) => {
-      const file = event.target.files && event.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        const img = new Image();
-        img.onload = () => {
-          const maxWidth = 900;
-          const scale = Math.min(1, maxWidth / img.width);
-          imageCanvas.width = Math.round(img.width * scale);
-          imageCanvas.height = Math.round(img.height * scale);
-          const ctx = imageCanvas.getContext('2d');
-          ctx.clearRect(0, 0, imageCanvas.width, imageCanvas.height);
-          ctx.drawImage(img, 0, 0, imageCanvas.width, imageCanvas.height);
-          imageCanvas.style.display = 'block';
-          samplerEmpty.style.display = 'none';
-          sampleInfo.style.display = 'none';
-          latestSample = null;
-        };
-        img.src = reader.result;
-      };
-      reader.readAsDataURL(file);
-    });
-
-    imageCanvas.addEventListener('click', (event) => {
-      const rect = imageCanvas.getBoundingClientRect();
-      const scaleX = imageCanvas.width / rect.width;
-      const scaleY = imageCanvas.height / rect.height;
-      const x = Math.floor((event.clientX - rect.left) * scaleX);
-      const y = Math.floor((event.clientY - rect.top) * scaleY);
-      const ctx = imageCanvas.getContext('2d');
-      const pixel = ctx.getImageData(x, y, 1, 1).data;
-      const [r, g, b] = pixel;
-      const hsv = rgbToHsv(r, g, b);
-      const hex = rgbToHex(r, g, b);
-      const mapping = nearestBase(hsv.h);
-
-      latestSample = {
-        base: mapping.name,
-        adjust: mapping.adjust,
-        saturation: hsv.s,
-        brightness: hsv.v,
-        hex,
-        rgb: { r, g, b },
-        hsv
-      };
-
-      sampleSwatch.style.background = hex;
-      sampleHex.textContent = hex;
-      sampleRgb.textContent = `${r}, ${g}, ${b}`;
-      sampleHsv.textContent = `${hsv.h}°, ${hsv.s}%, ${hsv.v}%`;
-      sampleBase.textContent = mapping.name;
-      sampleAdjust.textContent = mapping.adjust;
-      sampleSat.textContent = hsv.s;
-      sampleBright.textContent = hsv.v;
-      sampleInfo.style.display = 'grid';
-    });
-
-    applySampleBtn.addEventListener('click', () => {
-      if (!latestSample) return;
-      baseEl.value = latestSample.base;
-      syncAdjustFromValue(latestSample.adjust);
-      saturationEl.value = latestSample.saturation;
-      brightnessEl.value = latestSample.brightness;
-      render();
-    });
-
-    adjustInputEl.addEventListener('input', () => {
-      syncAdjustFromValue(adjustInputEl.value);
-      render();
-    });
-
-    saturationInputEl.addEventListener('input', () => {
-      syncSaturation(saturationInputEl.value);
-      render();
-    });
-
-    brightnessInputEl.addEventListener('input', () => {
-      syncBrightness(brightnessInputEl.value);
-      render();
-    });
-
-    adjustInputEl.addEventListener('change', () => {
-      syncAdjustFromValue(adjustInputEl.value);
-      render();
-    });
-
-    [baseEl, adjustEl, saturationEl, brightnessEl].forEach(el => {
-      el.addEventListener('input', render);
-      el.addEventListener('change', render);
-    });
-
-    render();
-  </script>
+render();
+</script>
 </body>
 </html>
