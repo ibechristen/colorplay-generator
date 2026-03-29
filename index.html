@@ -196,7 +196,7 @@
             <input id="adjust" type="range" min="-255" max="255" value="27" step="1" />
             <div class="btn-row" style="margin-top:10px;">
               <div style="width:220px; max-width:100%;">
-                <label for="adjustInput" style="font-weight:400; margin-bottom:6px;"></label>
+                <label for="adjustInput" style="font-weight:400; margin-bottom:6px;">Type Hue Adjust</label>
                 <input id="adjustInput" type="number" min="-255" max="255" value="27" step="1" />
               </div>
             </div>
@@ -209,7 +209,7 @@
             <input id="saturation" type="range" min="0" max="100" value="67" step="1" />
             <div class="btn-row" style="margin-top:10px;">
               <div style="width:220px; max-width:100%;">
-                <label for="saturationInput" style="font-weight:400; margin-bottom:6px;"></label>
+                <label for="saturationInput" style="font-weight:400; margin-bottom:6px;">Type Saturation</label>
                 <input id="saturationInput" type="number" min="0" max="100" value="67" step="1" />
               </div>
             </div>
@@ -222,7 +222,7 @@
             <input id="brightness" type="range" min="0" max="100" value="100" step="1" />
             <div class="btn-row" style="margin-top:10px;">
               <div style="width:220px; max-width:100%;">
-                <label for="brightnessInput" style="font-weight:400; margin-bottom:6px;"></label>
+                <label for="brightnessInput" style="font-weight:400; margin-bottom:6px;">Type Brightness</label>
                 <input id="brightnessInput" type="number" min="0" max="100" value="100" step="1" />
               </div>
             </div>
@@ -565,6 +565,9 @@
     });
 
     brightnessInputEl.addEventListener('input', () => {
+      syncBrightness(brightnessInputEl.value);
+      render();
+    });
 
     adjustInputEl.addEventListener('change', () => {
       syncAdjustFromValue(adjustInputEl.value);
