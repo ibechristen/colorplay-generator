@@ -66,21 +66,39 @@ export default function ColorPlayColorGenerator() {
   const [adjust, setAdjust] = useState(27);
   const [saturation, setSaturation] = useState(67);
   const [brightness, setBrightness] = useState(100);
-  const [manualHue, setManualHue] = useState("87");
+  const [manualAdjust, setManualAdjust] = useState("27");
+  const [manualSaturation, setManualSaturation] = useState("67");
+  const [manualBrightness, setManualBrightness] = useState("100");
 
   const baseObj = BASES.find((b) => b.name === base) ?? BASES[1];
-  const finalHue = useMemo(() => wrapHue(baseObj.deg + adjust), [baseObj, adjust]);
+  // Adjust scaling factor to better match real fixture behavior
+  const SCALE = 0.25; // compress hue movement so it doesn't overshoot like HSV
+  const finalHue = useMemo(() => wrapHue(baseObj.deg + (adjust * SCALE)), [baseObj, adjust]);
   const rgb = useMemo(() => hsvToRgb(finalHue, saturation, brightness), [finalHue, saturation, brightness]);
   const hex = useMemo(() => rgbToHex(rgb), [rgb]);
-  const suggested = useMemo(() => nearestBase(finalHue), [finalHue]);
 
-  const importFromHue = () => {
-    const parsed = Number(manualHue);
+  const syncAdjust = (value) => {
+    const parsed = Number(value);
     if (Number.isNaN(parsed)) return;
-    const hue = wrapHue(parsed);
-    const match = nearestBase(hue);
-    setBase(match.name);
-    setAdjust(clamp(match.adjust, -255, 255));
+    const safe = clamp(parsed, -255, 255);
+    setAdjust(safe);
+    setManualAdjust(String(safe));
+  };
+
+  const syncSaturation = (value) => {
+    const parsed = Number(value);
+    if (Number.isNaN(parsed)) return;
+    const safe = clamp(parsed, 0, 100);
+    setSaturation(safe);
+    setManualSaturation(String(safe));
+  };
+
+  const syncBrightness = (value) => {
+    const parsed = Number(value);
+    if (Number.isNaN(parsed)) return;
+    const safe = clamp(parsed, 0, 100);
+    setBrightness(safe);
+    setManualBrightness(String(safe));
   };
 
   const copyText = async (text) => {
@@ -101,7 +119,7 @@ export default function ColorPlayColorGenerator() {
             <h1 className="text-3xl font-semibold tracking-tight">ColorPlay Color Generator</h1>
             <p className="mt-2 max-w-2xl text-sm text-neutral-600">
               Pick a Base Color, adjust Hue, Saturation, and Brightness, and preview the result.
-              This also helps translate between a standard HSV hue and a ColorPlay-style recipe.
+              Preview the result in real time.
             </p>
           </div>
 
@@ -129,7 +147,21 @@ export default function ColorPlayColorGenerator() {
                   <label className="font-medium">Hue Adjust</label>
                   <Badge variant="secondary">{adjust}</Badge>
                 </div>
-                <Slider value={[adjust]} min={-255} max={255} step={1} onValueChange={(v) => setAdjust(v[0])} />
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <Slider value={[adjust]} min={-255} max={255} step={1} onValueChange={(v) => syncAdjust(v[0])} />
+                  </div>
+                  <Input
+                    value={manualAdjust}
+                    onChange={(e) => setManualAdjust(e.target.value)}
+                    onBlur={() => syncAdjust(manualAdjust)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") syncAdjust(manualAdjust);
+                    }}
+                    className="w-24 rounded-xl"
+                    inputMode="numeric"
+                  />
+                </div>
                 <p className="text-xs text-neutral-500">Negative usually shifts warmer; positive usually shifts cooler from the chosen base.</p>
               </div>
 
@@ -138,7 +170,21 @@ export default function ColorPlayColorGenerator() {
                   <label className="font-medium">Saturation</label>
                   <Badge variant="secondary">{saturation}</Badge>
                 </div>
-                <Slider value={[saturation]} min={0} max={100} step={1} onValueChange={(v) => setSaturation(v[0])} />
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <Slider value={[saturation]} min={0} max={100} step={1} onValueChange={(v) => syncSaturation(v[0])} />
+                  </div>
+                  <Input
+                    value={manualSaturation}
+                    onChange={(e) => setManualSaturation(e.target.value)}
+                    onBlur={() => syncSaturation(manualSaturation)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") syncSaturation(manualSaturation);
+                    }}
+                    className="w-24 rounded-xl"
+                    inputMode="numeric"
+                  />
+                </div>
               </div>
 
               <div className="space-y-3">
@@ -146,7 +192,21 @@ export default function ColorPlayColorGenerator() {
                   <label className="font-medium">Brightness</label>
                   <Badge variant="secondary">{brightness}</Badge>
                 </div>
-                <Slider value={[brightness]} min={0} max={100} step={1} onValueChange={(v) => setBrightness(v[0])} />
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <Slider value={[brightness]} min={0} max={100} step={1} onValueChange={(v) => syncBrightness(v[0])} />
+                  </div>
+                  <Input
+                    value={manualBrightness}
+                    onChange={(e) => setManualBrightness(e.target.value)}
+                    onBlur={() => syncBrightness(manualBrightness)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") syncBrightness(manualBrightness);
+                    }}
+                    className="w-24 rounded-xl"
+                    inputMode="numeric"
+                  />
+                </div>
               </div>
 
               <div className="flex flex-wrap gap-3">
@@ -155,7 +215,9 @@ export default function ColorPlayColorGenerator() {
                   setAdjust(27);
                   setSaturation(67);
                   setBrightness(100);
-                  setManualHue("87");
+                  setManualAdjust("27");
+                  setManualSaturation("67");
+                  setManualBrightness("100");
                 }}>
                   <RotateCcw className="mr-2 h-4 w-4" /> Reset Example
                 </Button>
@@ -166,28 +228,7 @@ export default function ColorPlayColorGenerator() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl shadow-sm">
-            <CardHeader>
-              <CardTitle>Convert from Standard HSV Hue</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-neutral-600">
-                Enter a regular hue value from 0° to 360°. The tool will suggest the nearest Base Color and a Hue Adjust value.
-              </p>
-              <div className="flex gap-3">
-                <Input
-                  value={manualHue}
-                  onChange={(e) => setManualHue(e.target.value)}
-                  className="rounded-xl"
-                  placeholder="Example: 240"
-                />
-                <Button className="rounded-xl" onClick={importFromHue}>Convert</Button>
-              </div>
-              <p className="text-sm text-neutral-700">
-                Suggested mapping for current preview: <span className="font-medium">{suggested.name}</span> with Hue Adjust <span className="font-medium">{suggested.adjust}</span>
-              </p>
-            </CardContent>
-          </Card>
+          
         </div>
 
         <div className="space-y-6">
