@@ -29,12 +29,23 @@ label { font-weight:bold; display:block; margin-bottom:6px; }
 input[type=range] { flex:1; }
 input[type=number] { width:80px; padding:6px; }
 select { padding:8px; width:100%; }
+
 .preview {
   height:220px;
   border-radius:10px;
   margin-top:12px;
 }
-.recipe { margin-top:10px; font-weight:bold; }
+
+.output {
+  margin-top:12px;
+  padding:10px;
+  background:#f1f1f1;
+  border-radius:8px;
+  font-weight:bold;
+}
+
+.recipe { margin-top:10px; }
+
 </style>
 </head>
 
@@ -82,6 +93,12 @@ select { padding:8px; width:100%; }
 </div>
 
 <div id="preview" class="preview"></div>
+
+<div class="output">
+HEX: <span id="hex"></span><br>
+RGB: <span id="rgb"></span>
+</div>
+
 <div id="recipe" class="recipe"></div>
 
 </div>
@@ -106,6 +123,8 @@ const brightEl = document.getElementById('brightness');
 const brightInput = document.getElementById('brightnessInput');
 const preview = document.getElementById('preview');
 const recipe = document.getElementById('recipe');
+const hexEl = document.getElementById('hex');
+const rgbEl = document.getElementById('rgb');
 
 function clamp(v,min,max){ return Math.min(max,Math.max(min,Number(v)||0)); }
 function wrap(h){ h%=360; return h<0?h+360:h; }
@@ -151,9 +170,14 @@ let bright = Number(brightEl.value);
 
 let h = getHue(base, adjust);
 let [r,g,b] = hsvToRgb(h,sat,bright);
+
 let hex = '#' + [r,g,b].map(x=>x.toString(16).padStart(2,'0')).join('').toUpperCase();
 
 preview.style.background = hex;
+
+hexEl.textContent = hex;
+rgbEl.textContent = `${r}, ${g}, ${b}`;
+
 recipe.textContent = `Base: ${base} | Hue: ${adjust} | Sat: ${sat} | Bright: ${bright}`;
 }
 
