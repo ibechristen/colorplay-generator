@@ -196,7 +196,7 @@
             <input id="adjust" type="range" min="-255" max="255" value="27" step="1" />
             <div class="btn-row" style="margin-top:10px;">
               <div style="width:220px; max-width:100%;">
-                <label for="adjustInput" style="font-weight:400; margin-bottom:6px;">Type Hue Adjust</label>
+                <label for="adjustInput" style="font-weight:400; margin-bottom:6px;"></label>
                 <input id="adjustInput" type="number" min="-255" max="255" value="27" step="1" />
               </div>
             </div>
@@ -207,13 +207,27 @@
           <div class="field">
             <label for="saturation">Saturation</label>
             <input id="saturation" type="range" min="0" max="100" value="67" step="1" />
+            <div class="btn-row" style="margin-top:10px;">
+              <div style="width:220px; max-width:100%;">
+                <label for="saturationInput" style="font-weight:400; margin-bottom:6px;"></label>
+                <input id="saturationInput" type="number" min="0" max="100" value="67" step="1" />
+              </div>
+            </div>
             <div class="value">Current: <span id="saturationValue">67</span></div>
+          </div>
           </div>
 
           <div class="field">
             <label for="brightness">Brightness</label>
             <input id="brightness" type="range" min="0" max="100" value="100" step="1" />
+            <div class="btn-row" style="margin-top:10px;">
+              <div style="width:220px; max-width:100%;">
+                <label for="brightnessInput" style="font-weight:400; margin-bottom:6px;"></label>
+                <input id="brightnessInput" type="number" min="0" max="100" value="100" step="1" />
+              </div>
+            </div>
             <div class="value">Current: <span id="brightnessValue">100</span></div>
+          </div>
           </div>
 
           <div class="btn-row">
@@ -278,6 +292,8 @@
     const saturationEl = document.getElementById('saturation');
     const brightnessEl = document.getElementById('brightness');
     const adjustInputEl = document.getElementById('adjustInput');
+    const saturationInputEl = document.getElementById('saturationInput');
+    const brightnessInputEl = document.getElementById('brightnessInput');
 
     const adjustValueEl = document.getElementById('adjustValue');
     const saturationValueEl = document.getElementById('saturationValue');
@@ -382,6 +398,20 @@
       return safeValue;
     }
 
+    function syncSaturation(value) {
+      const safeValue = clamp(Number(value) || 0, 0, 100);
+      saturationEl.value = safeValue;
+      saturationInputEl.value = safeValue;
+      return safeValue;
+    }
+
+    function syncBrightness(value) {
+      const safeValue = clamp(Number(value) || 0, 0, 100);
+      brightnessEl.value = safeValue;
+      brightnessInputEl.value = safeValue;
+      return safeValue;
+    }
+
     function nearestBase(hue) {
       let best = null;
       for (const [name, deg] of Object.entries(BASES)) {
@@ -398,8 +428,8 @@
     function render() {
       const base = baseEl.value;
       const adjust = syncAdjustFromValue(adjustEl.value);
-      const saturation = Number(saturationEl.value);
-      const brightness = Number(brightnessEl.value);
+      const saturation = syncSaturation(saturationEl.value);
+      const brightness = syncBrightness(brightnessEl.value);
       const baseDeg = BASES[base];
       const hue = wrapHue(baseDeg + adjust);
       const rgb = hsvToRgb(hue, saturation, brightness);
@@ -408,6 +438,8 @@
 
       adjustValueEl.textContent = adjust;
       adjustInputEl.value = adjust;
+      saturationInputEl.value = saturation;
+      brightnessInputEl.value = brightness;
       saturationValueEl.textContent = saturation;
       brightnessValueEl.textContent = brightness;
 
@@ -526,6 +558,13 @@
       syncAdjustFromValue(adjustInputEl.value);
       render();
     });
+
+    saturationInputEl.addEventListener('input', () => {
+      syncSaturation(saturationInputEl.value);
+      render();
+    });
+
+    brightnessInputEl.addEventListener('input', () => {
 
     adjustInputEl.addEventListener('change', () => {
       syncAdjustFromValue(adjustInputEl.value);
