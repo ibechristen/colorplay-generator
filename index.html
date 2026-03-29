@@ -359,7 +359,7 @@
       }
 
       if (baseName === "Cyan") {
-        return wrapHue(base.deg + (100 - saturation) * 0.5);
+        return wrapHue(base.deg + adjust * 0.1 + (100 - saturation) * 0.3);
       }
 
       if (baseName === "Magenta") {
