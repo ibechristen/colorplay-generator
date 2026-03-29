@@ -1,137 +1,244 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>ColorPlay Generator</title>
-<style>
-body { font-family: Arial; margin:0; background:#f5f5f5; }
-.wrap { max-width:900px; margin:auto; padding:20px; }
-.card { background:white; padding:18px; border-radius:12px; margin-bottom:16px; }
-.row { margin-bottom:14px; }
-label { font-weight:bold; display:block; margin-bottom:6px; }
-.flex { display:flex; gap:10px; align-items:center; }
-input[type=range] { flex:1; }
-input[type=number] { width:80px; padding:6px; }
-select { padding:8px; width:100%; }
-.preview { height:220px; border-radius:10px; margin-top:12px; }
-.recipe { margin-top:10px; font-weight:bold; }
-</style>
-</head>
-<body>
-<div class="wrap">
-<h2>ColorPlay Generator</h2>
+import React, { useMemo, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Slider } from "@/components/ui/slider";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Copy, RotateCcw } from "lucide-react";
 
-<div class="card">
-
-<div class="row">
-<label>Base Color</label>
-<select id="base">
-<option>Red</option>
-<option selected>Yellow</option>
-<option>Green</option>
-<option>Cyan</option>
-<option>Blue</option>
-<option>Magenta</option>
-</select>
-</div>
-
-<div class="row">
-<label>Hue Adjust</label>
-<div class="flex">
-<input id="adjust" type="range" min="-255" max="255" value="27">
-<input id="adjustInput" type="number" min="-255" max="255" value="27">
-</div>
-</div>
-
-<div class="row">
-<label>Saturation</label>
-<div class="flex">
-<input id="saturation" type="range" min="0" max="100" value="67">
-<input id="saturationInput" type="number" min="0" max="100" value="67">
-</div>
-</div>
-
-<div class="row">
-<label>Brightness</label>
-<div class="flex">
-<input id="brightness" type="range" min="0" max="100" value="100">
-<input id="brightnessInput" type="number" min="0" max="100" value="100">
-</div>
-</div>
-
-<div id="preview" class="preview"></div>
-<div id="recipe" class="recipe"></div>
-
-</div>
-</div>
-
-<script>
-const BASES = { Red:0, Yellow:60, Green:120, Cyan:180, Blue:240, Magenta:300 };
-
-const baseEl = document.getElementById('base');
-const adjustEl = document.getElementById('adjust');
-const adjustInput = document.getElementById('adjustInput');
-const satEl = document.getElementById('saturation');
-const satInput = document.getElementById('saturationInput');
-const brightEl = document.getElementById('brightness');
-const brightInput = document.getElementById('brightnessInput');
-const preview = document.getElementById('preview');
-const recipe = document.getElementById('recipe');
-
-function clamp(v,min,max){ return Math.min(max,Math.max(min,Number(v)||0)); }
-function wrap(h){ h%=360; return h<0?h+360:h; }
-
-function hsvToRgb(h,s,v){
-s/=100; v/=100;
-let c=v*s;
-let x=c*(1-Math.abs((h/60)%2-1));
-let m=v-c;
-let r=0,g=0,b=0;
-if(h<60){r=c;g=x}
-else if(h<120){r=x;g=c}
-else if(h<180){g=c;b=x}
-else if(h<240){g=x;b=c}
-else if(h<300){r=x;b=c}
-else{r=c;b=x}
-return [
-Math.round((r+m)*255),
-Math.round((g+m)*255),
-Math.round((b+m)*255)
+const BASES = [
+  { name: "Red", deg: 0 },
+  { name: "Yellow", deg: 60 },
+  { name: "Green", deg: 120 },
+  { name: "Cyan", deg: 180 },
+  { name: "Blue", deg: 240 },
+  { name: "Magenta", deg: 300 },
 ];
+
+function clamp(n, min, max) {
+  return Math.min(max, Math.max(min, n));
 }
 
-function sync(){
-adjustEl.value = adjustInput.value = clamp(adjustEl.value,-255,255);
-satEl.value = satInput.value = clamp(satEl.value,0,100);
-brightEl.value = brightInput.value = clamp(brightEl.value,0,100);
+function wrapHue(deg) {
+  let out = deg % 360;
+  if (out < 0) out += 360;
+  return out;
 }
 
-function render(){
-sync();
-let base = baseEl.value;
-let h = wrap(BASES[base] + Number(adjustEl.value));
-let s = Number(satEl.value);
-let v = Number(brightEl.value);
-let [r,g,b] = hsvToRgb(h,s,v);
-let hex = '#' + [r,g,b].map(x=>x.toString(16).padStart(2,'0')).join('').toUpperCase();
-preview.style.background = hex;
-recipe.textContent = `Base: ${base} | Hue: ${adjustEl.value} | Sat: ${s} | Bright: ${v}`;
+function hsvToRgb(h, s, v) {
+  const sat = s / 100;
+  const val = v / 100;
+  const c = val * sat;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = val - c;
+
+  let r1 = 0, g1 = 0, b1 = 0;
+  if (h >= 0 && h < 60) [r1, g1, b1] = [c, x, 0];
+  else if (h < 120) [r1, g1, b1] = [x, c, 0];
+  else if (h < 180) [r1, g1, b1] = [0, c, x];
+  else if (h < 240) [r1, g1, b1] = [0, x, c];
+  else if (h < 300) [r1, g1, b1] = [x, 0, c];
+  else [r1, g1, b1] = [c, 0, x];
+
+  return {
+    r: Math.round((r1 + m) * 255),
+    g: Math.round((g1 + m) * 255),
+    b: Math.round((b1 + m) * 255),
+  };
 }
 
-[adjustEl,adjustInput,satEl,satInput,brightEl,brightInput,baseEl].forEach(el=>{
-el.addEventListener('input',()=>{
-if(el===adjustInput) adjustEl.value=el.value;
-if(el===satInput) satEl.value=el.value;
-if(el===brightInput) brightEl.value=el.value;
-if(el===adjustEl) adjustInput.value=el.value;
-if(el===satEl) satInput.value=el.value;
-if(el===brightEl) brightInput.value=el.value;
-render();
-});
-});
+function rgbToHex({ r, g, b }) {
+  return `#${[r, g, b].map((n) => n.toString(16).padStart(2, "0")).join("").toUpperCase()}`;
+}
 
-render();
-</script>
-</body>
-</html>
+function nearestBase(hue) {
+  return BASES.reduce((best, base) => {
+    const forward = wrapHue(hue - base.deg);
+    const backward = forward > 180 ? forward - 360 : forward;
+    const distance = Math.abs(backward);
+    return distance < best.distance ? { ...base, adjust: Math.round(backward), distance } : best;
+  }, { ...BASES[0], adjust: 0, distance: Infinity });
+}
+
+export default function ColorPlayColorGenerator() {
+  const [base, setBase] = useState("Yellow");
+  const [adjust, setAdjust] = useState(27);
+  const [saturation, setSaturation] = useState(67);
+  const [brightness, setBrightness] = useState(100);
+  const [manualHue, setManualHue] = useState("87");
+
+  const baseObj = BASES.find((b) => b.name === base) ?? BASES[1];
+  const finalHue = useMemo(() => wrapHue(baseObj.deg + adjust), [baseObj, adjust]);
+  const rgb = useMemo(() => hsvToRgb(finalHue, saturation, brightness), [finalHue, saturation, brightness]);
+  const hex = useMemo(() => rgbToHex(rgb), [rgb]);
+  const suggested = useMemo(() => nearestBase(finalHue), [finalHue]);
+
+  const importFromHue = () => {
+    const parsed = Number(manualHue);
+    if (Number.isNaN(parsed)) return;
+    const hue = wrapHue(parsed);
+    const match = nearestBase(hue);
+    setBase(match.name);
+    setAdjust(clamp(match.adjust, -255, 255));
+  };
+
+  const copyText = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // no-op in preview environments without clipboard access
+    }
+  };
+
+  const recipe = `Base: ${base} | Hue Adjust: ${adjust} | Saturation: ${saturation} | Brightness: ${brightness}`;
+
+  return (
+    <div className="min-h-screen bg-neutral-50 p-6 md:p-10">
+      <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-3xl font-semibold tracking-tight">ColorPlay Color Generator</h1>
+            <p className="mt-2 max-w-2xl text-sm text-neutral-600">
+              Pick a Base Color, adjust Hue, Saturation, and Brightness, and preview the result.
+              This also helps translate between a standard HSV hue and a ColorPlay-style recipe.
+            </p>
+          </div>
+
+          <Card className="rounded-2xl shadow-sm">
+            <CardHeader>
+              <CardTitle>ColorPlay Controls</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Base Color</label>
+                <Select value={base} onValueChange={setBase}>
+                  <SelectTrigger className="rounded-xl">
+                    <SelectValue placeholder="Select base color" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BASES.map((b) => (
+                      <SelectItem key={b.name} value={b.name}>{b.name} ({b.deg}°)</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <label className="font-medium">Hue Adjust</label>
+                  <Badge variant="secondary">{adjust}</Badge>
+                </div>
+                <Slider value={[adjust]} min={-255} max={255} step={1} onValueChange={(v) => setAdjust(v[0])} />
+                <p className="text-xs text-neutral-500">Negative usually shifts warmer; positive usually shifts cooler from the chosen base.</p>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <label className="font-medium">Saturation</label>
+                  <Badge variant="secondary">{saturation}</Badge>
+                </div>
+                <Slider value={[saturation]} min={0} max={100} step={1} onValueChange={(v) => setSaturation(v[0])} />
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <label className="font-medium">Brightness</label>
+                  <Badge variant="secondary">{brightness}</Badge>
+                </div>
+                <Slider value={[brightness]} min={0} max={100} step={1} onValueChange={(v) => setBrightness(v[0])} />
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <Button variant="outline" className="rounded-xl" onClick={() => {
+                  setBase("Yellow");
+                  setAdjust(27);
+                  setSaturation(67);
+                  setBrightness(100);
+                  setManualHue("87");
+                }}>
+                  <RotateCcw className="mr-2 h-4 w-4" /> Reset Example
+                </Button>
+                <Button className="rounded-xl" onClick={() => copyText(recipe)}>
+                  <Copy className="mr-2 h-4 w-4" /> Copy Recipe
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl shadow-sm">
+            <CardHeader>
+              <CardTitle>Convert from Standard HSV Hue</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-neutral-600">
+                Enter a regular hue value from 0° to 360°. The tool will suggest the nearest Base Color and a Hue Adjust value.
+              </p>
+              <div className="flex gap-3">
+                <Input
+                  value={manualHue}
+                  onChange={(e) => setManualHue(e.target.value)}
+                  className="rounded-xl"
+                  placeholder="Example: 240"
+                />
+                <Button className="rounded-xl" onClick={importFromHue}>Convert</Button>
+              </div>
+              <p className="text-sm text-neutral-700">
+                Suggested mapping for current preview: <span className="font-medium">{suggested.name}</span> with Hue Adjust <span className="font-medium">{suggested.adjust}</span>
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="space-y-6">
+          <Card className="overflow-hidden rounded-2xl shadow-sm">
+            <div className="h-72 w-full" style={{ backgroundColor: hex }} />
+            <CardContent className="space-y-4 p-6">
+              <div>
+                <p className="text-sm text-neutral-500">Live preview</p>
+                <h2 className="text-2xl font-semibold">{hex}</h2>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl border p-4">
+                  <p className="text-xs uppercase tracking-wide text-neutral-500">ColorPlay</p>
+                  <p className="mt-2 text-sm font-medium">Base: {base}</p>
+                  <p className="text-sm">Hue Adjust: {adjust}</p>
+                  <p className="text-sm">Saturation: {saturation}</p>
+                  <p className="text-sm">Brightness: {brightness}</p>
+                </div>
+                <div className="rounded-2xl border p-4">
+                  <p className="text-xs uppercase tracking-wide text-neutral-500">Standard HSV / RGB</p>
+                  <p className="mt-2 text-sm">Hue: {finalHue}°</p>
+                  <p className="text-sm">Saturation: {saturation}%</p>
+                  <p className="text-sm">Brightness: {brightness}%</p>
+                  <p className="text-sm">RGB: {rgb.r}, {rgb.g}, {rgb.b}</p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-neutral-100 p-4 text-sm text-neutral-700">
+                <span className="font-medium">Recipe:</span> {recipe}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl shadow-sm">
+            <CardHeader>
+              <CardTitle>Base Anchor Degrees</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-3">
+                {BASES.map((b) => (
+                  <div key={b.name} className="rounded-2xl border p-3">
+                    <p className="font-medium">{b.name}</p>
+                    <p className="text-neutral-600">{b.deg}°</p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
